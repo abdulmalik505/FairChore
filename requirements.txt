@@ -1,0 +1,18 @@
+# Production dependencies
+flask==3.1.1
+flask-cors==5.0.1
+psycopg2-binary==2.9.10
+python-dotenv==1.2.2
+
+# Production WSGI server (cross-platform, pure Python).
+# Run with: waitress-serve --listen=0.0.0.0:5000 backend.app:app
+waitress==3.0.2
+# For Linux/cloud (Render, Railway, Fly), gunicorn is also a fine choice —
+# install on demand: pip install gunicorn==23.0.0
+
+# Evaluation / simulation (not needed to run the web app)
+matplotlib==3.10.1
+numpy==2.2.4
+
+# Development / testing
+pytest==9.0.3

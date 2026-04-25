@@ -1,0 +1,38 @@
+# Virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# React build output
+frontend/build/
+
+# Generated results (re-run simulation to regenerate)
+results/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor / tool config dirs that some IDEs drop in repo roots
+.claude/
+CLAUDE.md
+*.stackdump
+
+# Env files (copy .env.example → .env to configure locally)
+.env
+.env.local
+
+# Academic reference PDFs (not needed in repo)
+docs/*.pdf
