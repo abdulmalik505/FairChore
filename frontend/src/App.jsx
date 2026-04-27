@@ -217,7 +217,7 @@ function BurdenBars({ balance }) {
   return (
     <div className="burden-section">
       <div className="burden-header">
-        <h3 className="burden-title">Burden balance</h3>
+        <h3 className="burden-title">⚖️ Burden balance</h3>
       </div>
       <div className="burden-bars">
         {data.map((d, i) => {
@@ -231,7 +231,6 @@ function BurdenBars({ balance }) {
                     className="burden-bar-fill"
                     style={{ width: `${barW}%`, background: getBurdenBarColor(d.percentage) }}
                   />
-                  <div className="burden-fair-line" />
                 </div>
                 <span className="burden-bar-pct">{d.percentage.toFixed(0)}%</span>
               </div>
@@ -477,10 +476,8 @@ function HomeScreen({
 
             {/* Action Center */}
             <div className="bento-grid">
-              {isAdmin && (
-                <BentoButton icon="+" label="Add Chore" variant="outline"
-                  onClick={() => onNavigate('add-chore')} />
-              )}
+              <BentoButton icon="+" label="Add Chore" variant="outline"
+                onClick={() => onNavigate('add-chore')} />
               {isAdmin && (
                 <BentoButton icon="⚡" label="Allocate" sub={currentRound ? 'Re-run' : 'Start'}
                   variant="teal" onClick={() => onNavigate('allocate-confirm')} />
@@ -516,6 +513,9 @@ function HomeScreen({
                         </div>
                         <div className="chore-info">
                           <span className="chore-name">{chore.title}</span>
+                          {chore.description && (
+                            <span className="chore-desc">{chore.description}</span>
+                          )}
                           <span className="chore-hint">{isDone ? 'Completed ✓' : 'Tap to mark done'}</span>
                         </div>
                       </div>
@@ -691,6 +691,9 @@ function ChoresScreen({
                             </div>
                             <div className="chore-info">
                               <span className="chore-name">{chore.title}</span>
+                              {chore.description && (
+                                <span className="chore-desc">{chore.description}</span>
+                              )}
                               <span className="chore-hint" style={{ color: !round.isCurrent && !isDone ? '#C77800' : undefined }}>
                                 {hint}
                               </span>
@@ -713,8 +716,8 @@ function ChoresScreen({
               <div className="empty-state">
                 <div className="empty-icon">📋</div>
                 <p className="empty-title">No chores added yet</p>
-                {isAdmin && <button className="btn btn-teal" style={{ marginTop: 16 }}
-                  onClick={() => onNavigate('add-chore')}>+ Add Chore</button>}
+                <button className="btn btn-teal" style={{ marginTop: 16 }}
+                  onClick={() => onNavigate('add-chore')}>+ Add Chore</button>
               </div>
             ) : (
               <>
@@ -771,6 +774,9 @@ function ChoresScreen({
                             </div>
                             <div className="chore-info">
                               <span className="chore-name">{chore.title}</span>
+                              {chore.description && (
+                                <span className="chore-desc">{chore.description}</span>
+                              )}
                               <span className="chore-hint" style={{ color: !chore.isCurrent && !isDone ? '#C77800' : undefined }}>
                                 {isDone ? 'Completed'
                                   : chore.isCurrent ? (isOwner ? 'Tap to complete' : 'In progress')
@@ -829,10 +835,8 @@ function ChoresScreen({
                   </div>
                 )}
 
-                {isAdmin && (
-                  <button className="btn btn-ghost" style={{ marginTop: 16 }}
-                    onClick={() => onNavigate('add-chore')}>+ Add New Chore</button>
-                )}
+                <button className="btn btn-ghost" style={{ marginTop: 16 }}
+                  onClick={() => onNavigate('add-chore')}>+ Add New Chore</button>
               </>
             )}
           </>

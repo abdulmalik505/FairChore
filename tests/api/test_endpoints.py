@@ -233,7 +233,10 @@ class TestChores:
         assert res.status_code == 201
         assert json.loads(res.data)["title"] == "Dishes"
 
-    def test_non_admin_cannot_add_chore(self, client):
+    def test_any_member_can_add_chore(self, client):
+        """Any household member (admin or not) can add a chore. Allocations
+        stay admin-only, so anyone can grow the pool but only the admin
+        decides when chores actually get assigned."""
         register(client, username="Admin", email="admin@test.com")
         admin_token = get_token(client, email="admin@test.com")
         h_res = create_household(client, admin_token)
@@ -246,6 +249,17 @@ class TestChores:
                     headers=auth_headers(member_token))
 
         res = add_chore(client, member_token, hid, "Dishes")
+        assert res.status_code == 201, res.data
+
+    def test_non_member_cannot_add_chore(self, client):
+        """A user who isn't in the household still can't add chores there."""
+        register(client, username="Admin", email="admin@test.com")
+        admin_token = get_token(client, email="admin@test.com")
+        h_res = create_household(client, admin_token)
+        hid = json.loads(h_res.data)["id"]
+        register(client, username="Outsider", email="out@test.com")
+        out_token = get_token(client, email="out@test.com")
+        res = add_chore(client, out_token, hid, "Dishes")
         assert res.status_code == 403
 
     def test_add_chore_missing_title_rejected(self, client):
@@ -1131,6 +1145,59 @@ class TestAuditEndpoints:
         bad = client.post("/api/login",
                           json={"email": "bye@x.com", "password": "password123"})
         assert bad.status_code == 401
+
+    def test_admin_can_delete_account_admin_transfers_to_other_member(self, client, db):
+        """Admin of a household with other members deletes their account.
+        Admin role must hand off to the next member; household survives."""
+        admin_tok, bob_tok, hid, _ = self._setup_two_member_house(client)
+        cur = db.cursor()
+        cur.execute("SELECT id FROM users WHERE email='bob@a.com'")
+        bob_id = cur.fetchone()[0]
+        cur.close()
+
+        r = client.delete("/api/account", headers=auth_headers(admin_tok))
+        assert r.status_code == 200, r.data
+
+        cur = db.cursor()
+        cur.execute("SELECT 1 FROM users WHERE email='admin@a.com'")
+        assert cur.fetchone() is None
+        cur.execute("SELECT admin_id FROM households WHERE id = %s", (hid,))
+        new_admin_id = cur.fetchone()[0]
+        assert new_admin_id == bob_id, (
+            "Household should still exist with Bob as the new admin, "
+            f"got admin_id={new_admin_id}"
+        )
+        cur.close()
+
+    def test_solo_admin_account_delete_also_deletes_household(self, client, db):
+        """Solo admin (the only member) deletes their account.
+        The household has nobody left, so it is deleted too."""
+        register(client, email="lone@x.com", username="Lone")
+        tok = get_token(client, email="lone@x.com")
+        h = create_household(client, tok, name="Lone House")
+        hid = json.loads(h.data)["id"]
+        # Add a chore + a confirmed allocation so assignment_history has rows.
+        cid = json.loads(add_chore(client, tok, hid, "X").data)["id"]
+        save_preferences(client, tok, hid, {str(cid): 2})
+        alloc = json.loads(run_allocation(client, tok, hid, "round-robin").data)
+        client.post(f"/api/households/{hid}/allocate/confirm",
+                    json={"algorithm": alloc["algorithm"],
+                          "allocation": alloc["allocation"],
+                          "scores": alloc.get("scores", {}),
+                          "metrics": alloc.get("metrics", {})},
+                    headers=auth_headers(tok))
+
+        r = client.delete("/api/account", headers=auth_headers(tok))
+        assert r.status_code == 200, r.data
+
+        cur = db.cursor()
+        cur.execute("SELECT 1 FROM users WHERE email='lone@x.com'")
+        assert cur.fetchone() is None
+        cur.execute("SELECT 1 FROM households WHERE id = %s", (hid,))
+        assert cur.fetchone() is None, "Solo household should be deleted"
+        cur.execute("SELECT 1 FROM chores WHERE id = %s", (cid,))
+        assert cur.fetchone() is None, "Cascade should remove the chore"
+        cur.close()
 
     def test_history_returns_round_with_replay_data(self, client):
         admin_tok, _, hid, _ = self._setup_two_member_house(client)

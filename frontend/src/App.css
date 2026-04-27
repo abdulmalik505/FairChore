@@ -591,7 +591,9 @@ html, body {
 .chore-info { flex: 1; min-width: 0; }
 .chore-name { display: block; font-size: 1rem; font-weight: 600; color: var(--text); }
 .chore-card.done .chore-name, .task-card.done .chore-name { text-decoration: line-through; color: var(--sub); }
+.chore-desc { display: block; font-size: 0.8125rem; color: #4a4f5b; margin-top: 2px; line-height: 1.35; white-space: pre-wrap; }
 .chore-hint { display: block; font-size: 0.8125rem; color: var(--sub); margin-top: 2px; }
+.chore-card.done .chore-desc, .task-card.done .chore-desc { color: var(--sub); }
 
 /* ─── BURDEN BALANCE BARS ────────────────────────────────────────────────── */
 .burden-section {

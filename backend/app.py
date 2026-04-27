@@ -607,13 +607,14 @@ def burden_balance(house_id):
 def add_chore(house_id):
     """
     POST /api/households/<id>/chores — Add a new chore to the household.
-    Auth: Bearer token required. Admin only.
+    Auth: Bearer token required. Any household member.
+
     Body: { title, description? (optional), capabilities?: { user_id: bool } }
 
     Preference inheritance: if any other chore in the same household has the
     same title (case-insensitive) — active, inactive, or already in history —
     the new chore inherits its scores/capabilities from the most recent match.
-    This lets the admin re-add "Vacuuming" or any seed-library chore by name
+    This lets a member re-add "Vacuuming" or any seed-library chore by name
     and have it allocatable immediately, without anyone re-rating.
 
     The `capabilities` body field, if provided, overrides any inherited
@@ -621,12 +622,15 @@ def add_chore(house_id):
     the requesting user's inherited score.
 
     Returns: { id, title, description, capabilities, inherited_from? }
-    Errors: 400 missing title, 403 not admin
+    Errors: 400 missing title, 403 not a member
     """
     conn = get_db()
     try:
-        if not is_admin(conn, house_id, g.user_id):
-            return jsonify({"error": "Only the household admin can add chores"}), 403
+        # Any household member can add a chore. Allocations remain admin-only,
+        # so even though anyone can grow the pool, only the admin decides
+        # when an allocation actually runs.
+        if not is_member(conn, house_id, g.user_id):
+            return jsonify({"error": "Not a member of this household"}), 403
 
         data = request.get_json() or {}
         title = (data.get('title') or '').strip()
@@ -1428,7 +1432,8 @@ def get_history(house_id):
                 ah.user_id     AS member_id,
                 u.username     AS member,
                 c.id           AS chore_id,
-                c.title        AS chore_title
+                c.title        AS chore_title,
+                COALESCE(c.description, '') AS chore_description
             FROM assignment_history ah
             JOIN users u ON u.id = ah.user_id
             JOIN chores c ON c.id = ah.chore_id
@@ -1459,6 +1464,7 @@ def get_history(house_id):
             grouped[ts]['assignments'][mid]['chores'].append({
                 "id": r['chore_id'],
                 "title": r['chore_title'],
+                "description": r['chore_description'],
                 "assignment_id": r['assignment_id'],
                 "completed_at": r['completed_at'].isoformat() if r['completed_at'] else None,
             })
@@ -1685,14 +1691,41 @@ def delete_account():
     conn = get_db()
     try:
         cur = conn.cursor()
-        cur.execute("DELETE FROM household_members WHERE user_id = %s", (g.user_id,))
+
+        # 1. Wipe the user's own per-chore data first. This must happen BEFORE
+        #    we delete any household, because dropping a household cascades to
+        #    chores → burden_scores, but chores → assignment_history has no
+        #    cascade rule and would block the household delete if any history
+        #    rows remained.
         cur.execute("DELETE FROM burden_scores WHERE user_id = %s", (g.user_id,))
         cur.execute("DELETE FROM assignment_history WHERE user_id = %s", (g.user_id,))
+        cur.execute("DELETE FROM household_members WHERE user_id = %s", (g.user_id,))
+
+        # 2. For every household this user was admin of, either hand admin
+        #    to the oldest remaining member or delete the household if they
+        #    were the sole member.
+        cur.execute("SELECT id FROM households WHERE admin_id = %s", (g.user_id,))
+        admin_of = [r[0] for r in cur.fetchall()]
+        for hid in admin_of:
+            cur.execute("""
+                SELECT user_id FROM household_members
+                WHERE household_id = %s
+                ORDER BY user_id ASC LIMIT 1
+            """, (hid,))
+            row = cur.fetchone()
+            if row:
+                cur.execute("UPDATE households SET admin_id = %s WHERE id = %s",
+                            (row[0], hid))
+            else:
+                cur.execute("DELETE FROM households WHERE id = %s", (hid,))
+
+        # 3. Finally drop the user row itself.
         cur.execute("DELETE FROM users WHERE id = %s", (g.user_id,))
         conn.commit()
         return jsonify({"success": True})
     except Exception as e:
         conn.rollback()
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
@@ -1708,18 +1741,29 @@ def serve_react(path):
         '..', 'frontend', 'build'
     ))
 
-    # Serve static assets (JS, CSS, images)
+    # Hashed JS/CSS bundles under static/ — content-addressed, safe to cache
+    # for a year. New builds produce new filenames so this never goes stale.
     if path.startswith('static/'):
         file_path = os.path.join(build_dir, path)
         if os.path.exists(file_path):
-            return send_from_directory(build_dir, path)
+            resp = send_from_directory(build_dir, path)
+            resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            return resp
 
-    # Serve other files that exist (favicon, manifest, etc.)
+    # Other root files (favicon, manifest, robots.txt) — short cache
     if path and os.path.exists(os.path.join(build_dir, path)):
-        return send_from_directory(build_dir, path)
+        resp = send_from_directory(build_dir, path)
+        resp.headers['Cache-Control'] = 'public, max-age=3600'
+        return resp
 
-    # All other routes serve index.html (React router handles it)
-    return send_from_directory(build_dir, 'index.html')
+    # index.html (and every SPA fallback route) MUST NOT be cached. The HTML
+    # references hashed bundles by name; if a browser holds onto an old
+    # index.html after a deploy, it'd point at JS files that no longer exist.
+    resp = send_from_directory(build_dir, 'index.html')
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma']        = 'no-cache'
+    resp.headers['Expires']       = '0'
+    return resp
 
 
 # ─── START ───────────────────────────────────────────────────────────────────
