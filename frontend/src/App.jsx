@@ -2355,6 +2355,7 @@ export default function App() {
   const [balance, setBalance]           = useState(null);
   const [myPreferences, setMyPreferences] = useState(null);
   const [allocHistory, setAllocHistory] = useState([]);  // from /api/history (database)
+  const [householdsLoaded, setHouseholdsLoaded] = useState(false);  // false until first fetch finishes
 
   const nav = useCallback(s => {
     // Clear stale dry-run results when starting a new allocation flow
@@ -2364,7 +2365,8 @@ export default function App() {
 
   const handleUnauth = useCallback(() => {
     clearAuth(); setUser(null); setHousehold(null); setHouseholds([]); setReadiness([]);
-    setAllocHistory([]); setBalance(null); setMyPreferences(null); setScreen('welcome');
+    setAllocHistory([]); setBalance(null); setMyPreferences(null);
+    setHouseholdsLoaded(false); setScreen('welcome');
   }, []);
 
   const fetchReadiness = useCallback(async (hId) => {
@@ -2425,6 +2427,8 @@ export default function App() {
       }
     } catch (err) {
       if (err.message !== 'Unauthorized') console.error(err);
+    } finally {
+      setHouseholdsLoaded(true);
     }
   }, [handleUnauth, fetchReadiness, fetchBalance, fetchMyPreferences, fetchHistory]);
 
@@ -2540,7 +2544,7 @@ export default function App() {
                   readiness={readiness} balance={balance}
                   myPreferences={myPreferences} allocHistory={allocHistory}
                   onToggleDone={toggleAssignmentDone}
-                  loading={!household && !households.length && !!user} />
+                  loading={!householdsLoaded && !!user} />
               )}
               {screen === 'chores' && (
                 <ChoresScreen {...common} user={user} household={household}

@@ -7,7 +7,21 @@ A web app that splits household chores fairly using fair-division algorithms des
 > Supervisor: Dr. Bahar Rastegari
 > University of Southampton
 
-The full theoretical and design background lives in [docs/TECHNICAL_REFERENCE.md](docs/TECHNICAL_REFERENCE.md). This README is the practical "get it running" guide.
+## Try it live
+
+**https://fairchore.onrender.com**
+
+Works on any modern browser, desktop or phone (it's a PWA — Add to Home Screen for an app-like icon). Demo accounts (password `test123` for all):
+
+- `admin@flat42.com` — Flat 42 (4 students)
+- `admin@smiths.com` — The Smiths (couple)
+- `admin@family.com` — Family Home (2 parents + 2 teens)
+
+Or register your own account and create a household from scratch.
+
+> The app sleeps after 15 minutes of inactivity (free hosting tier). The first request after a quiet period takes 30–50 seconds to wake up — after that it's instant.
+
+The full theoretical and design background lives in [docs/TECHNICAL_REFERENCE.md](docs/TECHNICAL_REFERENCE.md). This README is the practical "get it running" guide if you want to run it locally.
 
 ---
 
