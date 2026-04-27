@@ -251,48 +251,14 @@ def generate_charts(results):
         return
 
     algos = list(ALGORITHMS.keys())
-    scenarios = list(dict.fromkeys(r["scenario"] for r in budget))
     sizes = sorted(set(r["n_members"] for r in budget))
 
-    _chart_ef1_by_scenario(budget, algos, scenarios, plt)
-    _chart_ef1_by_algorithm_ci(budget, algos, plt)
-    _chart_mms_vs_size(budget, algos, sizes, plt)
-    _chart_workload_box(budget, algos, plt)
-    _chart_runtime(budget, algos, sizes, plt)
-    _chart_budget_vs_rating(results, algos, sizes, plt)
-    _chart_zero_chores(budget, algos, sizes, plt)
-    _chart_constrained_vs_unconstrained(budget, algos, plt)
-    _chart_pareto(budget, algos, plt)
+    # Lean evaluation set — four charts, each making a single sharp claim.
+    _chart_ef1_by_algorithm_ci(budget, algos, plt)        # ef1_by_algorithm.png
+    _chart_mms_vs_size(budget, algos, sizes, plt)         # mms_comparison.png
+    _chart_constrained_vs_unconstrained(budget, algos, plt)  # constrained_vs_unconstrained.png
+    _chart_pareto(budget, algos, plt)                     # pareto_workload_runtime.png
     print(f"\nAll charts saved under {RESULTS_DIR}/")
-
-
-def _chart_ef1_by_scenario(budget, algos, scenarios, plt):
-    fig, ax = plt.subplots(figsize=(14, 6))
-    x = list(range(len(scenarios)))
-    width = 0.8 / len(algos)
-    for i, algo in enumerate(algos):
-        rates, errs = [], []
-        for sname in scenarios:
-            subset = [r for r in budget if r["scenario"] == sname and r["algorithm"] == algo]
-            m, w = _ef1_rate_ci(subset)
-            rates.append(m)
-            errs.append(w)
-        offset = (i - (len(algos) - 1) / 2) * width
-        ax.bar([xi + offset for xi in x], rates, width,
-               yerr=errs, capsize=2,
-               label=algo, color=ALGO_COLORS[algo],
-               edgecolor="white", linewidth=0.4,
-               error_kw={"ecolor": "#222", "elinewidth": 0.7})
-    ax.set_ylabel("EF1 satisfaction rate (%)")
-    ax.set_title("Envy-Freeness up to One Item (EF1) — per scenario, 95% CI")
-    ax.set_xticks(x)
-    ax.set_xticklabels([s.replace(" ", "\n", 1) for s in scenarios],
-                       fontsize=7.5, rotation=40, ha="right")
-    ax.axhline(100, color="#2CA02C", ls="--", lw=0.8, alpha=0.5)
-    ax.set_ylim(0, 110)
-    ax.legend(ncols=3, loc="lower center", bbox_to_anchor=(0.5, -0.45))
-    plt.savefig(os.path.join(RESULTS_DIR, "ef1_comparison.png"))
-    plt.close(fig)
 
 
 def _chart_ef1_by_algorithm_ci(budget, algos, plt):
@@ -343,99 +309,6 @@ def _chart_mms_vs_size(budget, algos, sizes, plt):
     ax.set_xticks(sizes)
     ax.legend(ncols=2)
     plt.savefig(os.path.join(RESULTS_DIR, "mms_comparison.png"))
-    plt.close(fig)
-
-
-def _chart_workload_box(budget, algos, plt):
-    fig, ax = plt.subplots(figsize=(10, 6))
-    # workload_ratio is None when min_burden=0 (undefined). Cap at 20 for the
-    # chart so a single 0-burden member doesn't blow up the y-axis.
-    data = [
-        [min((r["workload_ratio"] or 20), 20) for r in budget if r["algorithm"] == a]
-        for a in algos
-    ]
-    bp = ax.boxplot(data, labels=algos, patch_artist=True, widths=0.6,
-                    medianprops={"color": "#111", "linewidth": 1.2})
-    for box, a in zip(bp["boxes"], algos):
-        box.set_facecolor(ALGO_COLORS[a])
-        box.set_alpha(0.6)
-    ax.axhline(1.0, color="#2CA02C", ls="--", lw=0.8,
-               alpha=0.6, label="Perfect balance (= 1)")
-    ax.set_ylabel("Workload ratio  max(burden) / min(burden)")
-    ax.set_title("Workload balance distribution by algorithm")
-    ax.set_xticklabels(algos, rotation=25, ha="right")
-    ax.legend(loc="upper right")
-    plt.savefig(os.path.join(RESULTS_DIR, "workload_balance.png"))
-    plt.close(fig)
-
-
-def _chart_runtime(budget, algos, sizes, plt):
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for algo in algos:
-        means = []
-        for s in sizes:
-            subset = [r["runtime_ms"] for r in budget
-                      if r["algorithm"] == algo and r["n_members"] == s]
-            means.append(_mean(subset))
-        ax.plot(sizes, means, "o-", color=ALGO_COLORS[algo], label=algo,
-                markersize=5, linewidth=1.5)
-    ax.set_xlabel("Number of household members")
-    ax.set_ylabel("Mean runtime (ms)")
-    ax.set_title("Algorithm runtime vs household size (log scale)")
-    ax.set_yscale("log")
-    ax.set_xticks(sizes)
-    ax.legend(ncols=2)
-    plt.savefig(os.path.join(RESULTS_DIR, "runtime_scaling.png"))
-    plt.close(fig)
-
-
-def _chart_budget_vs_rating(results, algos, sizes, plt):
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    for ax, metric, label in [
-        (axes[0], "ef1", "EF1 rate (%)"),
-        (axes[1], "worst_mms_ratio", "Worst MMS ratio"),
-    ]:
-        for algo in algos:
-            for scoring, ls in [("budget", "-"), ("rating", "--")]:
-                means = []
-                for s in sizes:
-                    subset = [r for r in results
-                              if r["algorithm"] == algo and r["n_members"] == s
-                              and r["scoring"] == scoring]
-                    if not subset:
-                        means.append(0)
-                        continue
-                    if metric == "ef1":
-                        means.append(100 * sum(1 for r in subset if r["ef1"]) / len(subset))
-                    else:
-                        means.append(_mean([r[metric] for r in subset]))
-                ax.plot(sizes, means, ls, color=ALGO_COLORS[algo],
-                        label=f"{algo} ({scoring})", linewidth=1.3, markersize=3)
-        ax.set_xlabel("Household size")
-        ax.set_ylabel(label)
-        ax.set_title(f"{label} — budget (solid) vs rating (dashed)")
-        ax.set_xticks(sizes)
-        ax.legend(fontsize=6, ncols=2)
-    plt.savefig(os.path.join(RESULTS_DIR, "budget_vs_rating.png"))
-    plt.close(fig)
-
-
-def _chart_zero_chores(budget, algos, sizes, plt):
-    fig, ax = plt.subplots(figsize=(10, 6))
-    for algo in algos:
-        means = []
-        for s in sizes:
-            subset = [r["zero_chore_members"] for r in budget
-                      if r["algorithm"] == algo and r["n_members"] == s]
-            means.append(_mean(subset))
-        ax.plot(sizes, means, "o-", color=ALGO_COLORS[algo], label=algo,
-                markersize=5, linewidth=1.5)
-    ax.set_xlabel("Number of household members")
-    ax.set_ylabel("Mean members receiving zero chores")
-    ax.set_title("Practical fairness: members left out of the allocation")
-    ax.set_xticks(sizes)
-    ax.legend(ncols=2)
-    plt.savefig(os.path.join(RESULTS_DIR, "zero_chores.png"))
     plt.close(fig)
 
 

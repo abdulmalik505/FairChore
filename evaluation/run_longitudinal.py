@@ -175,71 +175,6 @@ def mean_member_trajectory(runs, members):
 
 # ─── CHARTS ──────────────────────────────────────────────────────────────────
 
-def chart_cumulative_std(series_aware, series_random, weeks):
-    """Main longitudinal chart — aware vs random cumulative-burden std-dev."""
-    fig, ax = plt.subplots(figsize=(11, 6))
-    for sname in TARGET_SCENARIOS:
-        color = SCENARIO_COLORS[sname]
-        aware = [w["cumulative_std"] for w in series_aware[sname]]
-        rand = [w["cumulative_std"] for w in series_random[sname]]
-        ax.plot(weeks, aware, color=color, linewidth=2.1,
-                label=f"{sname} — history-aware (burden-ordered)")
-        ax.plot(weeks, rand, color=color, linewidth=1.6, linestyle="--",
-                alpha=0.55, label=f"{sname} — random order")
-    ax.set_xlabel("Week")
-    ax.set_ylabel("Cumulative burden std-dev  (lower = more equal)")
-    ax.set_title("Cumulative burden balance over 26 weeks", fontweight="bold")
-    ax.set_xlim(1, N_WEEKS)
-    ax.set_xticks(range(1, N_WEEKS + 1, 2))
-    ax.legend(fontsize=8, loc="upper left", ncols=1,
-              bbox_to_anchor=(1.0, 1.0), framealpha=0.95)
-    ax.text(0.98, 0.03, "Round-Robin, 5 seeds averaged",
-            transform=ax.transAxes, fontsize=8, color="#666", ha="right",
-            style="italic")
-    plt.savefig(os.path.join(RESULTS_DIR, "longitudinal_fairness.png"))
-    plt.close(fig)
-
-
-def chart_ef1_weekly(series_aware, weeks):
-    fig, ax = plt.subplots(figsize=(11, 5.5))
-    for sname in TARGET_SCENARIOS:
-        rates = [100 * w["ef1_rate"] for w in series_aware[sname]]
-        ax.plot(weeks, rates, "o-", color=SCENARIO_COLORS[sname],
-                label=sname, markersize=4, linewidth=1.5, alpha=0.85)
-    ax.axhline(100, color="#2CA02C", ls="--", lw=0.8,
-               alpha=0.6, label="Perfect EF1")
-    ax.set_xlabel("Week")
-    ax.set_ylabel("EF1 satisfaction rate (%)")
-    ax.set_title("Per-week EF1 satisfaction under history-aware ordering",
-                 fontweight="bold")
-    ax.set_ylim(-5, 110)
-    ax.set_xticks(range(1, N_WEEKS + 1, 2))
-    ax.legend(loc="lower right")
-    plt.savefig(os.path.join(RESULTS_DIR, "longitudinal_ef1_weekly.png"))
-    plt.close(fig)
-
-
-def chart_gini_weekly(series_aware, series_random, weeks):
-    fig, ax = plt.subplots(figsize=(11, 5.5))
-    for sname in TARGET_SCENARIOS:
-        color = SCENARIO_COLORS[sname]
-        aware_g = [w["cumulative_gini"] for w in series_aware[sname]]
-        rand_g = [w["cumulative_gini"] for w in series_random[sname]]
-        ax.plot(weeks, aware_g, color=color, linewidth=2.0,
-                label=f"{sname} — aware")
-        ax.plot(weeks, rand_g, color=color, linewidth=1.5, linestyle="--",
-                alpha=0.55, label=f"{sname} — random")
-    ax.set_xlabel("Week")
-    ax.set_ylabel("Gini coefficient of cumulative burden\n(0 = equal, 1 = one person carries everything)")
-    ax.set_title("Inequality of cumulative workload over 26 weeks",
-                 fontweight="bold")
-    ax.set_xticks(range(1, N_WEEKS + 1, 2))
-    ax.legend(fontsize=8, loc="upper left",
-              bbox_to_anchor=(1.0, 1.0), framealpha=0.95)
-    plt.savefig(os.path.join(RESULTS_DIR, "longitudinal_gini_weekly.png"))
-    plt.close(fig)
-
-
 def chart_member_trajectory(scenario_name):
     """Per-member cumulative burden lines for one scenario. Shows whether
     history-aware ordering causes members to converge."""
@@ -315,7 +250,6 @@ def write_summary(summary_rows):
 def main():
     _style_setup()
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    weeks = list(range(1, N_WEEKS + 1))
 
     series_aware = defaultdict(list)
     series_random = defaultdict(list)
@@ -335,9 +269,6 @@ def main():
         series_random[sname] = average_over_seeds(rand_runs)
         print(f"  {sname}: done")
 
-    chart_cumulative_std(series_aware, series_random, weeks)
-    chart_ef1_weekly(series_aware, weeks)
-    chart_gini_weekly(series_aware, series_random, weeks)
     chart_member_trajectory(TRAJECTORY_SCENARIO)
 
     summary_rows = []
