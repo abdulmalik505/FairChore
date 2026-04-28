@@ -26,8 +26,6 @@ results/
 Thumbs.db
 
 # Editor / tool config dirs that some IDEs drop in repo roots
-.claude/
-CLAUDE.md
 *.stackdump
 
 # Env files (copy .env.example → .env to configure locally)

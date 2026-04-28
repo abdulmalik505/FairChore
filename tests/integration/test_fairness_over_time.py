@@ -58,7 +58,7 @@ EF1_ALGOS = [
 # "Family with young kids" and "Multi-generational" have restricted members
 # (children who can't do most chores). Under severe constraints EF1 cannot
 # hold because restricted members receive fewer chores than their preference
-# deserves — this is documented in Aziz et al. (2017) and CLAUDE.md.
+# deserves; see Aziz et al. (2017).
 UNCONSTRAINED_SCENARIOS = [s for s in SCENARIOS[:5]
                             if "kids" not in s["name"].lower()
                             and "young" not in s["name"].lower()]

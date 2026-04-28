@@ -175,40 +175,59 @@ def mean_member_trajectory(runs, members):
 
 # ─── CHARTS ──────────────────────────────────────────────────────────────────
 
-def chart_member_trajectory(scenario_name):
-    """Per-member cumulative burden lines for one scenario. Shows whether
-    history-aware ordering causes members to converge."""
+def chart_member_trajectory(scenario_name, series_aware, series_random, weeks):
+    """Single combined figure for the longitudinal study.
+
+    Left panel:  std-dev of cumulative burden over 26 weeks, every target
+                 scenario × aware/random condition. Shows that history-aware
+                 ordering keeps the spread tighter than random order does.
+    Right panel: per-member cumulative burden lines for one focal scenario
+                 (the freeloader case), aware-only. Shows the individual
+                 trajectories converging week by week — the visual proof
+                 that "the algorithm balances the burden over time".
+    """
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(15, 6),
+                                     gridspec_kw={"width_ratios": [1.15, 1]})
+
+    # ── Panel A: convergence across all target scenarios ─────────────────
+    for sname in TARGET_SCENARIOS:
+        color = SCENARIO_COLORS[sname]
+        aware = [w["cumulative_std"] for w in series_aware[sname]]
+        rand  = [w["cumulative_std"] for w in series_random[sname]]
+        ax_a.plot(weeks, aware, color=color, linewidth=2.1,
+                  label=f"{sname} — history-aware")
+        ax_a.plot(weeks, rand, color=color, linewidth=1.5, linestyle="--",
+                  alpha=0.55, label=f"{sname} — random")
+    ax_a.set_xlabel("Week")
+    ax_a.set_ylabel("Std-dev of cumulative burden  (lower = more equal)")
+    ax_a.set_title("(a) History-aware ordering keeps the spread tighter")
+    ax_a.set_xticks(range(1, N_WEEKS + 1, 4))
+    ax_a.legend(fontsize=7.5, loc="upper left", framealpha=0.95)
+
+    # ── Panel B: per-member trajectory for the focal scenario ────────────
     scenario_def = SCENARIO_MAP[scenario_name]
     aware_runs = [simulate_longitudinal(scenario_def, greedy_round_robin,
-                                        seed=s, history_aware=True) for s in SEEDS]
-    rand_runs = [simulate_longitudinal(scenario_def, greedy_round_robin,
-                                       seed=s, history_aware=False) for s in SEEDS]
+                                        seed=s, history_aware=True)
+                  for s in SEEDS]
     members = list(aware_runs[0][0]["burdens"].keys())
-    weeks = list(range(1, N_WEEKS + 1))
-
     aware_traj = mean_member_trajectory(aware_runs, members)
-    rand_traj = mean_member_trajectory(rand_runs, members)
-
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5), sharey=True)
     palette = plt.cm.tab10.colors
+    for i, m in enumerate(members):
+        ax_b.plot(weeks, aware_traj[m], color=palette[i % len(palette)],
+                  linewidth=1.9, label=m)
+    ax_b.set_xlabel("Week")
+    ax_b.set_ylabel("Cumulative burden per member")
+    ax_b.set_title(f"(b) Per-member trajectories converge — {scenario_name}")
+    ax_b.set_xticks(range(1, N_WEEKS + 1, 4))
+    ax_b.legend(fontsize=8, loc="upper left")
 
-    for ax, title, traj in [
-        (axes[0], "History-aware (burden-ordered) — converging", aware_traj),
-        (axes[1], "Random order baseline — diverging",           rand_traj),
-    ]:
-        for i, m in enumerate(members):
-            ax.plot(weeks, traj[m], color=palette[i % len(palette)],
-                    linewidth=1.8, label=m)
-        ax.set_xlabel("Week")
-        ax.set_title(title)
-        ax.set_xticks(range(1, N_WEEKS + 1, 2))
-    axes[0].set_ylabel("Cumulative burden")
-    axes[0].legend(fontsize=8, ncols=1, loc="upper left")
     fig.suptitle(
-        f"Per-member cumulative burden — {scenario_name}",
-        fontsize=13, fontweight="bold"
+        "Longitudinal fairness: history-aware vs random ordering, 26 weeks",
+        fontsize=13, fontweight="bold", y=1.02,
     )
-    plt.savefig(os.path.join(RESULTS_DIR, "longitudinal_member_trajectory.png"))
+    plt.tight_layout()
+    plt.savefig(os.path.join(RESULTS_DIR, "longitudinal_member_trajectory.png"),
+                bbox_inches="tight")
     plt.close(fig)
 
 
@@ -269,7 +288,8 @@ def main():
         series_random[sname] = average_over_seeds(rand_runs)
         print(f"  {sname}: done")
 
-    chart_member_trajectory(TRAJECTORY_SCENARIO)
+    weeks = list(range(1, N_WEEKS + 1))
+    chart_member_trajectory(TRAJECTORY_SCENARIO, series_aware, series_random, weeks)
 
     summary_rows = []
     for sname in TARGET_SCENARIOS:
