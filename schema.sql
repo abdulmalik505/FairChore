@@ -110,10 +110,10 @@ CREATE TABLE allocation_results (
 -- naturally as members confirm allocations, so the displayed burden bar and
 -- the algorithm's picking order share a single source of truth.
 INSERT INTO users (id, username, email, password_hash, total_burden_accumulated) VALUES
-(1,  'Alex',   'admin@flat42.com',  'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6:d8db8f92ccb594b8ccd7a9cc1025442de82ac7d300a558cad310e28adaddb472', 0),
-(2,  'Jordan', null, null, 0),
+(1,  'Abdul',   'admin@flat42.com',  'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6:d8db8f92ccb594b8ccd7a9cc1025442de82ac7d300a558cad310e28adaddb472', 0),
+(2,  'Lara', null, null, 0),
 (3,  'Sam',    null, null, 0),
-(4,  'Taylor', null, null, 0),
+(4,  'Sara', null, null, 0),
 (5,  'Pat',    'admin@smiths.com',  'b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7:0ec3dbdd663a47476ed70f9df9d633382abaaaf70369556649c95a68e907b912', 0),
 (6,  'Robin',  null, null, 0),
 (7,  'Mum',    'admin@family.com',  'c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8:ecb19bc446d6b31a404273d5ffc18bf50110d87c31eebf7025ab573122952713', 0),
